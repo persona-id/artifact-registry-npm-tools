@@ -14,7 +14,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const readline = require('readline');
 const c = require('./config');
 const {logger} = require('./logger');
 
@@ -29,11 +28,6 @@ const {logger} = require('./logger');
 async function updateConfigFiles(fromConfigPath, toConfigPath, creds) {
   fromConfigPath = path.resolve(fromConfigPath);
   toConfigPath = path.resolve(toConfigPath);
-  // Backward-compatible scenario. Update auth configs in project npmrc directly.
-  if (fromConfigPath == toConfigPath) {
-    updateConfigFile(fromConfigPath, creds);
-    return;
-  }
 
   const fromConfigs = [];
   const toConfigs = [];
@@ -99,10 +93,15 @@ async function updateConfigFiles(fromConfigPath, toConfigPath, creds) {
   // or write a new auth token config.
   toConfigs.push(...registryAuthConfigs.values());
 
-  // Write to the user npmrc file first so that if it failed the project npmrc file
-  // would still be untouched.
-  await fs.promises.writeFile(toConfigPath, toConfigs.join(`\n`));
-  await fs.promises.writeFile(fromConfigPath, fromConfigs.join(`\n`));
+  if (fromConfigPath == toConfigPath) {
+    // Combined .npmrc
+    await fs.promises.writeFile(toConfigPath, toConfigs.join(`\n`));
+  } else {
+    // Write to the user npmrc file first so that if it failed the project npmrc file
+    // would still be untouched.
+    await fs.promises.writeFile(toConfigPath, toConfigs.join(`\n`));
+    await fs.promises.writeFile(fromConfigPath, fromConfigs.join(`\n`));
+  }
 }
 
 /**
